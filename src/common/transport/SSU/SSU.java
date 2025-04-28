@@ -1,7 +1,9 @@
-package common.transport;
+package common.transport.SSU;
 
+import common.I2P.IDs.Destination;
 import common.I2P.NetworkDB.RouterInfo;
 import common.Logger;
+import common.transport.I2NPSocket;
 
 import javax.crypto.SecretKey;
 import java.io.IOException;
@@ -25,13 +27,16 @@ public class SSU {
     private PrivateKey privateKey;
 
 
-    SSU(RouterInfo router, SecretKey aesKey) throws SocketException {
+    SSU(RouterInfo router, Destination destination) throws SocketException {
 
     }
-    SSU(RouterInfo router, RouterInfo destRouter) throws IOException {
+
+    SSU(RouterInfo router, RouterInfo destRouter) throws SocketException {
         this.router = router;
         this.destRouter = destRouter;
+    }
 
+    private boolean handshake() {
         //start session
         try {
             KeyPairGenerator kpg = KeyPairGenerator.getInstance("X25519");
@@ -42,5 +47,7 @@ public class SSU {
         } catch (InvalidAlgorithmParameterException | NoSuchAlgorithmException e) {
             throw new RuntimeException(e); //should not hit case
         }
+
+        return false;
     }
 }

@@ -1,33 +1,52 @@
-package common.transport;
+package common.transport.SSU;
 
 import merrimackutil.json.JSONSerializable;
 import merrimackutil.json.types.JSONObject;
 import merrimackutil.json.types.JSONType;
 
 import java.io.InvalidObjectException;
+import java.security.SecureRandom;
 
 public class SSUMessage implements JSONSerializable {
+    /**
+     * Types of messages {@code SESSIONREQUEST, SESSIONCREATED, SESSIONCONFIRMED, SESSIONDESTROYED, DATA, ACK}
+     */
     public enum SSUMessageTypes {
         SESSIONREQUEST,
         SESSIONCREATED,
         SESSIONCONFIRMED,
+        SESSIONDESTROYED,
         DATA,
         ACK,
-        SESSIONTEARDOWN,
     }
 
+    /**
+     * Source of randomness
+     */
+    protected SecureRandom random = new SecureRandom();
+    /**
+     * Type of message
+     */
     protected SSUMessageTypes type;
 
+    /**
+     * Create message with type
+     * @param type enum of type
+     */
     protected SSUMessage(SSUMessageTypes type) {
         this.type = type;
     }
 
+    /**
+     * Create new SSU Message from JSON
+     * @param json json to deserialize
+     * @throws InvalidObjectException if json is invalid
+     */
     protected SSUMessage(JSONObject json) throws InvalidObjectException{
         deserialize(json);
     }
     /**
      * Returns type of message Type of message Enum {@code SESSIONREQUEST, SESSIONCREATED, SESSIONCONFIRMED, SESSIONDESTROYED, DATA, ACK}
-     * @return
      */
     public SSUMessageTypes getType() {
         return type;
