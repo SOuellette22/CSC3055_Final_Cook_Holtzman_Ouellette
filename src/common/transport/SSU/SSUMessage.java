@@ -30,10 +30,14 @@ public class SSUMessage implements JSONSerializable {
     protected SSUMessageTypes type;
 
     /**
+     * ID of connection
+     */
+    protected int connectionID;
+    /**
      * Create message with type
      * @param type enum of type
      */
-    protected SSUMessage(SSUMessageTypes type) {
+    protected SSUMessage(SSUMessageTypes type, int connectionID) {
         this.type = type;
     }
 
@@ -58,13 +62,21 @@ public class SSUMessage implements JSONSerializable {
             throw new InvalidObjectException("Must be JSONObject");
 
         JSONObject json = (JSONObject) jsonType;
-        json.checkValidity(new String[] {"type"});
+        json.checkValidity(new String[] {"type", "connectionID"});
+
+        type = SSUMessageTypes.values()[json.getInt("type")]; //get type based on ordinal
+        connectionID = json.getInt("connectionID");
     }
 
     @Override
     public JSONObject toJSONType() {
         JSONObject json = new JSONObject();
         json.put("type", type.ordinal());
+        json.put("connectionID", connectionID);
         return json;
+    }
+
+    public int getConnectionID() {
+        return connectionID;
     }
 }

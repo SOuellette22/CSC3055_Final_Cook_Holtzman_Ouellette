@@ -18,15 +18,16 @@ public class SessionRequest extends SSUMessage {
      * Public Shared data for DH exchange
      */
     private PublicKey DHPub;
-    //todo add ip address?
 
     /**
      * Create a new Session request
+     * @param connectionID ID of this connection
      * @param DHPub DH public key of session request
      */
-    public SessionRequest(PublicKey DHPub) {
-        super(SESSIONREQUEST);
+    public SessionRequest(int connectionID, PublicKey DHPub) {
+        super(SESSIONREQUEST, connectionID);
         this.DHPub = DHPub;
+        this.connectionID = connectionID;
     }
 
     /**
@@ -43,7 +44,7 @@ public class SessionRequest extends SSUMessage {
     @Override
     public void deserialize(JSONType jsonType) throws InvalidObjectException {
         JSONObject json = super.toJSONType();
-        json.checkValidity(new String[] {"DHPub"});
+        json.checkValidity(new String[] {"DHPub", "connectionID"});
 
         byte[] DHPubBytes = Base64.decode(json.getString("DHPub"));
 

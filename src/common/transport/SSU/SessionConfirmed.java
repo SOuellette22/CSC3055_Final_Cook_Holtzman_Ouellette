@@ -26,17 +26,21 @@ public class SessionConfirmed extends SSUMessage {
      * Signature of all data
      */
     private byte[] signature;
+    /**
+     *
+     */
 
     /**
      * Create session confirmed message by signing then encrypting signature with session key
+     * @param connectionID ID of this connection
      * @param xDHPub X of DH Key share from SessionRequest
      * @param yDHPub Y of DH key share from SessionCreated
      * @param nonce 16 byte nonce of this message
      * @param signingKey Router's private key to sign message
      * @param sessionKey AES Session key created from shared secret
      */
-    public SessionConfirmed(PublicKey xDHPub, PublicKey yDHPub, byte[] nonce, PrivateKey signingKey, SecretKey sessionKey) {
-        super(SESSIONCONFIRMED);
+    public SessionConfirmed(int connectionID, PublicKey xDHPub, PublicKey yDHPub, byte[] nonce, PrivateKey signingKey, SecretKey sessionKey) {
+        super(SESSIONCONFIRMED, connectionID);
         this.IV = new byte[16];
         random.nextBytes(this.IV);
 
@@ -78,6 +82,11 @@ public class SessionConfirmed extends SSUMessage {
         } catch (IllegalBlockSizeException | BadPaddingException e) {
             throw new RuntimeException("Bad padding message might need to be decreased" + e);
         }
+    }
+
+    public SessionConfirmed(JSONObject json) throws InvalidObjectException{
+        super(json);
+        deserialize(json);
     }
 
     /**
@@ -149,4 +158,6 @@ public class SessionConfirmed extends SSUMessage {
         json.put("signature", Base64.toBase64String(signature));
         return json;
     }
+
+
 }

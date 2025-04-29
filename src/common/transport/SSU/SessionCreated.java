@@ -38,17 +38,17 @@ public class SessionCreated extends SSUMessage {
 
     /**
      * Create SessionCreated mession
+     * @param connectionID ID of this connection
      * @param yDHPub Our DH-key share Y
      * @param xDHPub Other parties DH-Key share X
      * @param nonce 16 byte nonce
      * @param signingKey Router's private key to sign message
      * @param sessionKey Session key created from shared secret after DH key share
      */
-    public SessionCreated(PublicKey yDHPub, PublicKey xDHPub, byte[] nonce, PrivateKey signingKey, SecretKey sessionKey) {
-        super(SESSIONCREATED);
+    public SessionCreated(int connectionID, PublicKey yDHPub, PublicKey xDHPub, byte[] nonce, byte[] IV, PrivateKey signingKey, SecretKey sessionKey) {
+        super(SESSIONCREATED, connectionID);
         this.DHPub = yDHPub;
-        this.IV = new byte[16];
-        random.nextBytes(this.IV);
+        this.IV = IV;
         //create signature
         try {
             //get signature ready
@@ -180,5 +180,9 @@ public class SessionCreated extends SSUMessage {
 
     public byte[] getNonce() {
         return nonce;
+    }
+
+    public byte[] getIV() {
+        return IV;
     }
 }

@@ -29,11 +29,12 @@ public class SessionDestroyed extends SSUMessage {
     private byte[] encNonce;
     /**
      * Create session destroyed message
+     * @param connectionID ID of this connection
      * @param nonce Nonce of message
      * @param sessionKey Session Key to encrypt Nonce
      */
-    public SessionDestroyed(byte[] nonce, SecretKey sessionKey) {
-        super(SESSIONDESTROYED);
+    public SessionDestroyed(int connectionID, byte[] nonce, SecretKey sessionKey) {
+        super(SESSIONDESTROYED, connectionID);
         this.nonce = nonce;
         this.IV = new byte[16];
         random.nextBytes(this.IV);

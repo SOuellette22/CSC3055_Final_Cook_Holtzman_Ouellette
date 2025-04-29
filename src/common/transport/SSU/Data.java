@@ -32,13 +32,14 @@ public class Data extends SSUMessage {
 
     /**
      * Create new data message
+     * @param connectionID ID of this connection
      * @param data Data is payload of message
      * @param response flag for if message should be acked or not
      * @param nonce 16 byte nonce of message
      * @param sessionKey AES key for encryption
      */
-    public Data(byte[] data, boolean response, byte[] nonce, SecretKey sessionKey) {
-        super(SSUMessageTypes.DATA);
+    public Data(int connectionID, byte[] data, boolean response, byte[] nonce, SecretKey sessionKey) {
+        super(SSUMessageTypes.DATA, connectionID);
         this.response = response;
         this.nonce = nonce;
 

@@ -16,9 +16,8 @@ public class ACK extends SSUMessage{
      * Create an ACK message
      * @param nonce Nonce of message to ACK
      */
-    public ACK(byte[] nonce) {
-        super(SSUMessageTypes.ACK);
-
+    public ACK(byte[] nonce, int connectionID) {
+        super(SSUMessageTypes.ACK, connectionID);
     }
 
     public ACK(JSONObject json) throws InvalidObjectException {
