@@ -43,6 +43,7 @@ public class SSUConnection {
     private KeyPair keyPair;
     private KeyAgreement kex;
     private NonceCache nonceCache;
+    private PublicKey xDHPub;
     private enum ConnectionType {
         CLIENT, SERVER
     }
@@ -54,17 +55,20 @@ public class SSUConnection {
         this.nextExpected = SSUMessage.SSUMessageTypes.SESSIONCONFIRMED;
         this.nonceCache = new NonceCache(16, 60);
 
+        this.connectionID = request.getConnectionID();
         this.routerSigningKey = routerSigningKey;
         this.destVerificationKey = destVerificationKey;
 
         setUpKex(); //setup key exchange
+        handleServerMessage(request);
     }
 
-    public SSUConnection(PrivateKey routerSigningKey, PublicKey destVerificationKey) {
+    public SSUConnection(int connectionID,PrivateKey routerSigningKey, PublicKey destVerificationKey) {
         this.connectionType = ConnectionType.CLIENT;
         this.nextExpected = SSUMessage.SSUMessageTypes.SESSIONCREATED;
         this.nonceCache = new NonceCache(16, 60);
 
+        this.connectionID = connectionID;
         this.routerSigningKey = routerSigningKey;
         this.destVerificationKey = destVerificationKey;
 
@@ -81,6 +85,15 @@ public class SSUConnection {
             }
         }
         throw new IllegalStateException("Bad connection Type" + connectionType);
+    }
+
+    public byte[] getData(Data datamessage) {
+        //could happen if connection has not been setup yet
+        if (sessionKey == null)
+            return null;
+
+        //todo add reliable mode
+        return datamessage.getData(sessionKey);
     }
 
     private SSUMessage handleClientMessage(SSUMessage message) {
@@ -118,12 +131,6 @@ public class SSUConnection {
                 return new SessionConfirmed(connectionID,keyPair.getPublic(), created.getDHPub(), nonceCache.getNonce(),
                         routerSigningKey, sessionKey);
             }
-            case DATA -> {
-
-            }
-            case ACK -> {
-                //return;
-            }
             case SESSIONDESTROYED -> {
                 SessionDestroyed destroyed = (SessionDestroyed) message;
                 if (isNonceRepeat(destroyed.getNonce())) {
@@ -147,6 +154,7 @@ public class SSUConnection {
                 SessionRequest request = (SessionRequest) message;
                 //check expected type
                 if (isTypeBad(request.getType()))
+                    return null;
                 //generate shared secret
                 try {
                     kex.doPhase(request.getDHPub(), true);
@@ -167,7 +175,9 @@ public class SSUConnection {
                 //set next expected
                 nextExpected = SSUMessage.SSUMessageTypes.SESSIONCONFIRMED;
 
-                return new SessionCreated(connectionID, keyPair.getPublic(), request.getDHPub(),
+                //get DH pub of request
+                xDHPub = request.getDHPub();
+                return new SessionCreated(connectionID, keyPair.getPublic(), xDHPub,
                         nonceCache.getNonce(), IV, routerSigningKey, sessionKey);
             }
             case SESSIONCONFIRMED -> {
@@ -177,17 +187,11 @@ public class SSUConnection {
                 if (isTypeBad(confirmed.getType()))  // check type of message
                     return null;
 
-
-            }
-            case DATA -> {
-                Data data = (Data) message;
-                if (isNonceRepeat(data.getNonce())) {
+                //confirm signature of confirmated message
+                if (!confirmed.verifySignature(destVerificationKey, sessionKey, xDHPub, keyPair.getPublic()))
                     return null;
-                }
-                //todo add reliable mode
-            }
-            case ACK -> {
-                //todo add reliable mode
+
+                nextExpected = SSUMessage.SSUMessageTypes.DATA;
             }
             case SESSIONDESTROYED -> {
                 SessionDestroyed destroyed = (SessionDestroyed) message;
@@ -227,9 +231,9 @@ public class SSUConnection {
             //generate key
             KeyPairGenerator kpg = KeyPairGenerator.getInstance("X25519");
             kpg.initialize(new ECGenParameterSpec("X25519"), new SecureRandom());
-            KeyPair keyPair = kpg.generateKeyPair();
+            this.keyPair = kpg.generateKeyPair();
             //get key aggreement read
-            KeyAgreement kex = KeyAgreement.getInstance("X25519");
+            this.kex = KeyAgreement.getInstance("X25519");
             kex.init(keyPair.getPrivate());
         } catch (InvalidKeyException | NoSuchAlgorithmException | InvalidAlgorithmParameterException e) {
             throw new RuntimeException(e); //setup connection handler

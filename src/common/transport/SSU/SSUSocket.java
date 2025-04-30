@@ -1,11 +1,6 @@
 package common.transport.SSU;
 
-import common.I2P.I2NP.I2NPHeader;
-import common.I2P.I2NP.I2NPMessage;
-import common.I2P.I2NP.TunnelData;
-import common.I2P.NetworkDB.NetDB;
 import common.I2P.NetworkDB.RouterInfo;
-import common.I2P.router.Router;
 import common.Logger;
 import common.transport.I2NPSocket;
 import merrimackutil.json.JsonIO;
@@ -15,7 +10,6 @@ import org.bouncycastle.crypto.generators.SCrypt;
 
 import javax.crypto.KeyAgreement;
 import javax.crypto.SecretKey;
-import javax.crypto.spec.PBEKeySpec;
 import javax.crypto.spec.SecretKeySpec;
 import java.io.IOException;
 import java.net.*;
@@ -28,18 +22,31 @@ public class SSUSocket extends DatagramSocket{
      * MAX Size of datagram packets - this is hacky I just set it large in hopes we dont reach it
      */
     private final int MAX_SIZE = 4096;
+    /**
+     * Logger
+     */
     private Logger log = Logger.getInstance();
+    /**
+     * Nonce Cache for messages
+     */
     private NonceCache nonceCache = new NonceCache(16, 60);
+    /**
+     * Source of secure randomness
+     */
     private SecureRandom random = new SecureRandom();
+    /**
+     * ID for this connection
+     */
     private int connectionID;
+    /**
+     * Session key for this connection
+     */
     private SecretKey sessionKey;
 
-    SSUSocket(RouterInfo dest, PrivateKey signingKey) throws IOException {
+    SSUSocket(RouterInfo router, RouterInfo dest, PrivateKey signingKey, int connectionID) throws IOException {
         super();
         try {
-            //create connection ID
-            connectionID = random.nextInt();
-
+            this.connectionID = connectionID;
             //generate key
             KeyPairGenerator kpg = KeyPairGenerator.getInstance("X25519");
             kpg.initialize(new ECGenParameterSpec("X25519"), new SecureRandom());
@@ -49,10 +56,10 @@ public class SSUSocket extends DatagramSocket{
             kex.init(keyPair.getPrivate());
 
             //attempt to start a connection
-            sendMessage(new SessionRequest(connectionID, keyPair.getPublic()), dest);
+            send(new SessionRequest(connectionID, keyPair.getPublic()), dest);
 
             //receive next message
-            SSUMessage recvMsg = receiveMessage();
+            SSUMessage recvMsg = receive();
             //check message validity
             checkType(recvMsg.getType(), SSUMessage.SSUMessageTypes.SESSIONCREATED);
 
@@ -80,7 +87,7 @@ public class SSUSocket extends DatagramSocket{
             //send session confirmed
             SessionConfirmed confirmed = new SessionConfirmed(connectionID,keyPair.getPublic(), created.getDHPub(), nonceCache.getNonce(),
                     signingKey, sessionKey);
-            sendMessage(confirmed, dest);
+            send(confirmed, dest);
 
             log.debug("SSUSocket: connection established");
         }
@@ -92,8 +99,8 @@ public class SSUSocket extends DatagramSocket{
         }
     }
 
-    SSUSocket(int port, PrivateKey signingKey) throws IOException {
-        super(port);
+    public SSUSocket(RouterInfo router, PrivateKey signingKey, SessionRequest request) throws IOException {
+        super();
         try {
             //generate key
             KeyPairGenerator kpg = KeyPairGenerator.getInstance("X25519");
@@ -102,14 +109,6 @@ public class SSUSocket extends DatagramSocket{
             //get key aggreement read
             KeyAgreement kex = KeyAgreement.getInstance("X25519");
             kex.init(keyPair.getPrivate());
-
-            //wait for someone to connect
-            SSUMessage recvMsg = receiveMessage();
-            connectionID = recvMsg.getConnectionID();
-
-            log.debug("SSUSocket: Got connection " + connectionID);
-            checkType(recvMsg.getType(), SSUMessage.SSUMessageTypes.SESSIONREQUEST);
-            SessionRequest request = (SessionRequest) recvMsg;
 
             //generate shared secret
             kex.doPhase(request.getDHPub(), true);
@@ -126,9 +125,9 @@ public class SSUSocket extends DatagramSocket{
 
             SessionCreated created = new SessionCreated(connectionID, keyPair.getPublic(), request.getDHPub(),
                     nonceCache.getNonce(), IV, signingKey, sessionKey);
-            sendMessage(created, null); //todo fix send/recv
+            send(created, null); //todo fix send/recv
 
-            recvMsg = receiveMessage();
+            SSUMessage recvMsg = receive();
             checkType(recvMsg.getType(), SSUMessage.SSUMessageTypes.SESSIONCONFIRMED);
 
             SessionConfirmed confirmed = (SessionConfirmed) recvMsg;
@@ -145,7 +144,7 @@ public class SSUSocket extends DatagramSocket{
         }
     }
 
-    public void sendMessage(SSUMessage message, RouterInfo toSend) throws IOException {
+    private void send(SSUMessage message, RouterInfo toSend) throws IOException {
         byte[] messageByte = message.serialize().getBytes(StandardCharsets.UTF_8);
         if (messageByte.length > MAX_SIZE)
             throw new RuntimeException("Bytes is over max size! We will need to increase max size");
@@ -157,7 +156,7 @@ public class SSUSocket extends DatagramSocket{
         send(pkt);
     }
 
-    public SSUMessage receiveMessage() throws IOException{
+    private SSUMessage receive() throws IOException{
         DatagramPacket pkt = new DatagramPacket(new byte[MAX_SIZE], MAX_SIZE);
         receive(pkt);
 
@@ -200,7 +199,6 @@ public class SSUSocket extends DatagramSocket{
             throw new IOException("Expected " + expectedType + " SSUMessage but got " + typeToCheck);
         }
     }
-
     public int getConnectionID() {
         return connectionID;
     }
